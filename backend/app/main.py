@@ -27,8 +27,7 @@ async def health():
 
 app.include_router(router)
 
-# ===== 生产部署：单端口托管前端构建产物（frontend/dist） =====
-# dist 存在时，所有非 API 的 GET 请求都回落到静态文件 / index.html（SPA 路由）
+# 托管 frontend/dist，线上一个端口同时出页面和 API；没构建 dist 就只跑 API
 FRONTEND_DIST = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend", "dist")
 )

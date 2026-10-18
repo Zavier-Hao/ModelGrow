@@ -4,8 +4,8 @@ venv/
 __pycache__/
 *.pyc
 
-# 构建产物
-dist/
+# dist 要上传，后端托管用
+/dist/
 build/
 
 # 环境变量（含 API Key，严禁上传）

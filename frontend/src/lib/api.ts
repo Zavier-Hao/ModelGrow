@@ -1,10 +1,10 @@
 import type { ApiResponse, ModelInfo, Tutorial, ChatResult, BiliVideo, WorkGrade } from './types'
 
-/** 后端地址：默认跟随当前访问的主机名（支持 IP+端口 局域网访问），端口固定 3000 */
+// 跟随访问主机名，IP 直连也能请求到后端
 const API_BASE =
   import.meta.env.VITE_API_BASE || `http://${window.location.hostname}:3000`
 
-/** AI 请求超时：超时后 fetch 抛 AbortError，由调用方展示重试，避免界面永久卡住 */
+// AI 接口慢，超时就报错重试，别一直转圈
 const AI_TIMEOUT = 150_000
 
 export async function analyzeModel(file: File): Promise<ApiResponse<ModelInfo>> {
