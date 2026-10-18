@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
@@ -23,3 +26,19 @@ async def health():
 
 
 app.include_router(router)
+
+# ===== 生产部署：单端口托管前端构建产物（frontend/dist） =====
+# dist 存在时，所有非 API 的 GET 请求都回落到静态文件 / index.html（SPA 路由）
+FRONTEND_DIST = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend", "dist")
+)
+
+if os.path.isdir(FRONTEND_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend(full_path: str):
+        candidate = os.path.normpath(os.path.join(FRONTEND_DIST, full_path))
+        if candidate.startswith(FRONTEND_DIST) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
