@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { ChevronRight, Wrench, Lightbulb, AlertTriangle, Loader2, PlayCircle } from 'lucide-react'
+import { ChevronRight, Wrench, Lightbulb, AlertTriangle, PlayCircle } from 'lucide-react'
 import type { Tutorial, WorkGrade as WorkGradeResult } from '../lib/types'
 import { chatStep } from '../lib/api'
 import VideoRecommend from './VideoRecommend'
@@ -7,6 +7,7 @@ import MarkdownText from './MarkdownText'
 import LiquidInput from './LiquidInput'
 import WorkGrade from './WorkGrade'
 import StepIllustration from './StepIllustration'
+import TypingBubble from './TypingBubble'
 
 interface Props {
   tutorial: Tutorial
@@ -224,13 +225,7 @@ export default function TutorialView({ tutorial, onBack }: Props) {
                 )}
               </div>
             ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="frosted-glass px-3 py-2 rounded-2xl rounded-bl-sm">
-                  <Loader2 size={16} className="animate-spin text-accent-blue-light" />
-                </div>
-              </div>
-            )}
+            {loading && <TypingBubble />}
           </div>
 
           <LiquidInput

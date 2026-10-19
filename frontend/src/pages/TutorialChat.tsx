@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, Loader2, Bot } from 'lucide-react'
+import { MessageCircle, Bot } from 'lucide-react'
 import { guideChat } from '../lib/api'
 import VideoRecommend from '../components/VideoRecommend'
 import MarkdownText from '../components/MarkdownText'
 import LiquidInput from '../components/LiquidInput'
+import TypingBubble from '../components/TypingBubble'
 
 interface Msg {
   role: 'user' | 'ai'
@@ -92,13 +93,7 @@ export default function TutorialChat() {
             )}
           </div>
         ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="frosted-glass px-4 py-3 rounded-2xl rounded-bl-sm">
-              <Loader2 size={18} className="animate-spin text-accent-blue-light" />
-            </div>
-          </div>
-        )}
+        {loading && <TypingBubble />}
         {/* 快捷建议（仅初始时展示，随消息流滚动） */}
         {messages.length <= 1 && (
           <div className="pt-2">

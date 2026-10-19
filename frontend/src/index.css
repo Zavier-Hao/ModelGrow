@@ -181,3 +181,12 @@ body {
   55% { opacity: 0; }
   100% { transform: translateX(160%) rotate(20deg); opacity: 0; }
 }
+
+/* ===== 生成教程中间态：轨道光点 / 进度光条 / 打字气泡 ===== */
+@keyframes genOrbit { to { transform: rotate(360deg); } }
+@keyframes genBar { 0% { left: -35%; } 100% { left: 105%; } }
+@keyframes genPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes typingDot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}

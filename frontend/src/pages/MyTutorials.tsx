@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Baby, Package, Upload, Loader2, ArrowLeft, ExternalLink, AlertCircle } from 'lucide-react'
+import { Sparkles, Baby, Package, Upload, ArrowLeft, ExternalLink, AlertCircle } from 'lucide-react'
 import { beginnerModels } from '../data/beginnerModels'
 import { analyzeModel, generateTutorial } from '../lib/api'
 import type { ModelInfo, Tutorial } from '../lib/types'
 import TutorialView from '../components/TutorialView'
+import BuildingTutorial from '../components/BuildingTutorial'
 import Modal from '../components/Modal'
 
 type View = 'main' | 'beginner' | 'upload' | 'tutorial'
@@ -12,7 +13,7 @@ type View = 'main' | 'beginner' | 'upload' | 'tutorial'
 const friendlyAiError = (msg: string): string => {
   if (msg.includes('402') || msg.toLowerCase().includes('balance')) return 'AI 服务额度不足，请为硅基流动账户充值后再试'
   if (msg.includes('Model does not exist')) return 'AI 模型配置无效，请检查后端 VISION_MODEL / TEXT_MODEL 配置'
-  if (msg.includes('aborted') || msg.includes('timeout')) return '请求超时，AI 服务响应太慢，请重试'
+  if (msg.includes('aborted') || msg.includes('timeout') || msg.includes('timed out')) return '请求超时，AI 服务响应太慢，请重试'
   return msg
 }
 
@@ -74,9 +75,14 @@ export default function MyTutorials() {
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [pendingModel, setPendingModel] = useState<(typeof beginnerModels)[0] | null>(null)
+  const [genError, setGenError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleBeginnerModel = async (model: (typeof beginnerModels)[0]) => {
+    setPendingModel(model)
+    setGenError('')
+    setTutorial(null)
     setLoading(true)
     setView('tutorial')
     try {
@@ -91,7 +97,14 @@ export default function MyTutorials() {
         features: `${model.intro}。推荐理由：${model.reason}`,
       }
       const res = await generateTutorial(modelInfo)
-      if (res.success) setTutorial(res.data)
+      if (res.success) {
+        setTutorial(res.data)
+        setPendingModel(null)
+      } else {
+        setGenError(friendlyAiError(res.error || '教程生成失败'))
+      }
+    } catch {
+      setGenError('网络连接异常，请确认网络后重试')
     } finally {
       setLoading(false)
     }
@@ -139,19 +152,40 @@ export default function MyTutorials() {
     setPreviewUrl('')
     setPendingFile(null)
     setUploadError('')
+    setPendingModel(null)
+    setGenError('')
   }
 
-  // 教程展示
-  if (view === 'tutorial' && tutorial) {
+  // 教程页：生成中 → 中间态动画；生成完 → 教程内容；失败 → 错误 + 重试
+  if (view === 'tutorial') {
     return (
       <div className="px-4 pt-6">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 text-gray-400">
-            <Loader2 size={40} className="animate-spin text-accent-blue mb-4" />
-            <p className="text-sm">AI 正在为你定制教程...</p>
-          </div>
-        ) : (
+          <BuildingTutorial />
+        ) : tutorial ? (
           <TutorialView tutorial={tutorial} onBack={goMain} />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <AlertCircle size={36} className="text-orange-400 mb-4" />
+            <p className="text-sm text-gray-300 mb-1">教程没有生成成功</p>
+            <p className="text-xs text-gray-500 mb-6 max-w-[280px] break-all">{genError || '未知错误'}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={goMain}
+                className="frosted-glass px-5 py-2.5 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+              >
+                返回
+              </button>
+              {pendingModel && (
+                <button
+                  onClick={() => handleBeginnerModel(pendingModel)}
+                  className="bg-accent-blue px-5 py-2.5 rounded-full text-xs text-white font-medium hover:shadow-[0_0_12px_rgba(59,130,246,0.5)] transition-all"
+                >
+                  重试
+                </button>
+              )}
+            </div>
+          </div>
         )}
       </div>
     )
@@ -166,11 +200,7 @@ export default function MyTutorials() {
             <img src={previewUrl} alt="model" className="w-32 h-32 object-cover rounded-2xl mb-6 frosted-glass p-1" />
           )}
           {loading ? (
-            <>
-              <Loader2 size={40} className="animate-spin text-accent-blue mb-4" />
-              <p className="text-sm text-gray-300">正在识别模型并生成教程...</p>
-              <p className="text-xs text-gray-500 mt-2">通常需要 10-30 秒</p>
-            </>
+            <BuildingTutorial />
           ) : (
             <>
               <AlertCircle size={36} className="text-orange-400 mb-4" />

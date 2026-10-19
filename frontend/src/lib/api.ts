@@ -6,6 +6,8 @@ const API_BASE =
 
 // AI 接口慢，超时就报错重试，别一直转圈
 const AI_TIMEOUT = 150_000
+const CHAT_TIMEOUT = 60_000
+const SEARCH_TIMEOUT = 20_000
 
 export async function analyzeModel(file: File): Promise<ApiResponse<ModelInfo>> {
   const formData = new FormData()
@@ -39,6 +41,7 @@ export async function chatStep(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, step_name: stepName, model_name: modelName }),
+    signal: AbortSignal.timeout(CHAT_TIMEOUT),
   })
   return res.json()
 }
@@ -50,12 +53,15 @@ export async function guideChat(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question }),
+    signal: AbortSignal.timeout(CHAT_TIMEOUT),
   })
   return res.json()
 }
 
 export async function searchBilibili(keyword: string): Promise<ApiResponse<{ videos: BiliVideo[]; keyword: string }>> {
-  const res = await fetch(`${API_BASE}/api/bilibili/search?keyword=${encodeURIComponent(keyword)}`)
+  const res = await fetch(`${API_BASE}/api/bilibili/search?keyword=${encodeURIComponent(keyword)}`, {
+    signal: AbortSignal.timeout(SEARCH_TIMEOUT),
+  })
   return res.json()
 }
 
