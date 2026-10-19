@@ -7,6 +7,11 @@ import os
 
 load_dotenv()
 
+# 社区 SQLite 存储（backend/community.db）
+from app.services import community_store  # noqa: E402
+
+community_store.init(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "community.db")))
+
 from app.api.routes import router  # noqa: E402
 
 app = FastAPI(title="ModelGrow API")

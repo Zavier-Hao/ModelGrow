@@ -48,6 +48,8 @@ export default function BuildingTutorial() {
           style={{ animation: 'genBar 1.6s ease-in-out infinite' }}
         />
       </div>
+
+      <p className="text-[11px] text-gray-500 mt-4">首次搭建教程可能需要 60s+，请您耐心等待</p>
     </div>
   )
 }

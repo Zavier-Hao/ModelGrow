@@ -1,4 +1,5 @@
 import type { ApiResponse, ModelInfo, Tutorial, ChatResult, BiliVideo, WorkGrade } from './types'
+import type { Post, CommentItem } from '../data/communityPosts'
 
 // 跟随访问主机名，IP 直连也能请求到后端
 const API_BASE =
@@ -78,6 +79,57 @@ export async function gradeWork(
     method: 'POST',
     body: formData,
     signal: AbortSignal.timeout(AI_TIMEOUT),
+  })
+  return res.json()
+}
+
+// ---------- 社区（SQLite 持久化） ----------
+
+export async function getCommunityPosts(): Promise<ApiResponse<{ posts: Post[] }>> {
+  const res = await fetch(`${API_BASE}/api/community/posts`, {
+    signal: AbortSignal.timeout(SEARCH_TIMEOUT),
+  })
+  return res.json()
+}
+
+export async function createCommunityPost(p: {
+  tag: string
+  content: string
+  images: string[]
+  author: string
+  avatar: string
+}): Promise<ApiResponse<Post>> {
+  const res = await fetch(`${API_BASE}/api/community/posts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(p),
+    signal: AbortSignal.timeout(SEARCH_TIMEOUT),
+  })
+  return res.json()
+}
+
+export async function toggleCommunityLike(
+  id: string,
+  liked: boolean
+): Promise<ApiResponse<{ likes: number; liked: boolean }>> {
+  const res = await fetch(`${API_BASE}/api/community/posts/${id}/like`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ liked }),
+    signal: AbortSignal.timeout(SEARCH_TIMEOUT),
+  })
+  return res.json()
+}
+
+export async function addCommunityComment(
+  id: string,
+  c: { content: string; author: string; avatar: string; replyTo?: string }
+): Promise<ApiResponse<CommentItem>> {
+  const res = await fetch(`${API_BASE}/api/community/posts/${id}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(c),
+    signal: AbortSignal.timeout(SEARCH_TIMEOUT),
   })
   return res.json()
 }

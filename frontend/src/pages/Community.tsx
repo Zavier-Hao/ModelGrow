@@ -1,6 +1,18 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, Heart, ImagePlus, MessageCircle, Plus, Send, Users, X } from 'lucide-react'
 import { INITIAL_POSTS, MY_AVATAR, TAGS, type Post } from '../data/communityPosts'
+import { getCommunityPosts, createCommunityPost, toggleCommunityLike, addCommunityComment } from '../lib/api'
+
+/** 种子帖子的时间是展示文案直接用；新帖子是 ISO 时间转相对时间 */
+const fmtTime = (t: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(t) || t.length <= 10) return t
+  const diff = (Date.now() - new Date(t).getTime()) / 1000
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
+  if (diff < 172800) return '昨天'
+  return t.slice(5, 10)
+}
 
 /** 圆形图片头像 */
 function Avatar({ src, size }: { src: string; size: string }) {
@@ -67,7 +79,7 @@ function PostCard({ post, onOpen, onLike }: { post: Post; onOpen: () => void; on
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white truncate">{post.author}</p>
           <p className="text-[11px] text-gray-500">
-            {post.time} · {post.tag}
+            {fmtTime(post.time)} · {post.tag}
           </p>
         </div>
       </div>
@@ -174,7 +186,7 @@ function PostDetail({
                       {c.author === post.author && ' · 楼主'}
                     </span>
                     <span className="text-[10px] text-gray-600">
-                      {i + 1}楼 · {c.time}
+                      {i + 1}楼 · {fmtTime(c.time)}
                     </span>
                   </div>
                   <p className="text-[13px] text-gray-200 leading-relaxed mt-1 break-words">
@@ -361,24 +373,62 @@ function SiriFab({ onClick }: { onClick: () => void }) {
 }
 
 export default function Community() {
-  const [posts, setPosts] = useState(INITIAL_POSTS)
+  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS)
   const [activeTag, setActiveTag] = useState('全部')
   const [openId, setOpenId] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
 
-  const toggleLike = (id: string) =>
-    setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, liked: !p.liked, likes: p.likes + (p.liked ? -1 : 1) } : p)))
+  // 进页面拉服务端数据（SQLite 持久化），拉不到就用本地种子兜底
+  useEffect(() => {
+    getCommunityPosts()
+      .then((res) => {
+        if (res.success && res.data.posts.length > 0) setPosts(res.data.posts)
+      })
+      .catch(() => {})
+  }, [])
 
-  const addComment = (id: string, text: string) =>
+  const toggleLike = (id: string) => {
+    let nextLiked = false
     setPosts((ps) =>
-      ps.map((p) =>
-        p.id === id
-          ? { ...p, comments: [...p.comments, { id: `c${Date.now()}`, author: '我', avatar: MY_AVATAR, content: text, time: '刚刚' }] }
-          : p
-      )
+      ps.map((p) => {
+        if (p.id !== id) return p
+        nextLiked = !p.liked
+        return { ...p, liked: nextLiked, likes: p.likes + (nextLiked ? 1 : -1) }
+      })
     )
+    // 后台同步到服务端，失败就算了（下次进页面会以服务端为准）
+    toggleCommunityLike(id, nextLiked).catch(() => {})
+  }
 
-  const publishPost = (tag: string, content: string, images: string[]) => {
+  const addComment = async (id: string, text: string) => {
+    const temp: Post['comments'][0] = { id: `t${Date.now()}`, author: '我', avatar: MY_AVATAR, content: text, time: '刚刚' }
+    setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, comments: [...p.comments, temp] } : p)))
+    try {
+      const res = await addCommunityComment(id, { content: text, author: '我', avatar: MY_AVATAR })
+      if (res.success) {
+        // 用服务端返回的正式评论替换临时那条
+        setPosts((ps) =>
+          ps.map((p) =>
+            p.id === id ? { ...p, comments: p.comments.map((c) => (c.id === temp.id ? res.data : c)) } : p
+          )
+        )
+      }
+    } catch {
+      // 网络失败保留本地显示，不阻塞用户
+    }
+  }
+
+  const publishPost = async (tag: string, content: string, images: string[]) => {
+    setPublishing(false)
+    try {
+      const res = await createCommunityPost({ tag, content, images, author: '我', avatar: MY_AVATAR })
+      if (res.success) {
+        setPosts((ps) => [res.data, ...ps])
+        return
+      }
+    } catch {
+      // 落到本地兜底
+    }
     setPosts((ps) => [
       {
         id: `p${Date.now()}`,
@@ -394,7 +444,6 @@ export default function Community() {
       },
       ...ps,
     ])
-    setPublishing(false)
   }
 
   const filtered = activeTag === '全部' ? posts : posts.filter((p) => p.tag === activeTag)

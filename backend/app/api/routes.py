@@ -6,6 +6,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import Response
 
 from app.services.ai_client import ai_client, AIClientError
+from app.services import community_store
 from app.services.tutorial_service import (
     generate_tutorial,
     chat_about_step,
@@ -42,6 +43,25 @@ class ChatRequest(BaseModel):
 
 class GuideRequest(BaseModel):
     question: str
+
+
+class CommunityPostIn(BaseModel):
+    tag: str
+    content: str
+    images: list[str] = []
+    author: str = "我"
+    avatar: str = ""
+
+
+class CommunityLikeIn(BaseModel):
+    liked: bool
+
+
+class CommunityCommentIn(BaseModel):
+    content: str
+    author: str = "我"
+    avatar: str = ""
+    reply_to: Optional[str] = None
 
 
 def _success(data):
@@ -145,6 +165,50 @@ async def grade_work_api(
         if "Model does not exist" in msg:
             return _fail("AI 视觉模型配置无效，请检查 VISION_MODEL 配置")
         return _fail(f"评分失败: {msg}")
+
+
+@router.get("/community/posts")
+async def community_posts():
+    """社区帖子流（含跟帖），新帖在前"""
+    return _success({"posts": community_store.list_posts()})
+
+
+@router.post("/community/posts")
+async def community_create_post(req: CommunityPostIn):
+    if not req.content.strip():
+        return _fail("内容不能为空")
+    post = community_store.create_post(
+        req.author or "我",
+        req.avatar or "/community/avatars/a6.jpg",
+        req.tag or "素组打卡",
+        req.content.strip(),
+        req.images[:4],
+    )
+    return _success(post)
+
+
+@router.post("/community/posts/{post_id}/like")
+async def community_like(post_id: str, req: CommunityLikeIn):
+    result = community_store.set_like(post_id, req.liked)
+    if result is None:
+        return _fail("帖子不存在")
+    return _success(result)
+
+
+@router.post("/community/posts/{post_id}/comments")
+async def community_comment(post_id: str, req: CommunityCommentIn):
+    if not req.content.strip():
+        return _fail("评论内容不能为空")
+    comment = community_store.add_comment(
+        post_id,
+        req.author or "我",
+        req.avatar or "/community/avatars/a6.jpg",
+        req.content.strip(),
+        req.reply_to,
+    )
+    if comment is None:
+        return _fail("帖子不存在")
+    return _success(comment)
 
 
 @router.get("/bilibili/search")
